@@ -3,14 +3,16 @@ sorting tools.test ;
 
 IN: mysql.tests
 
-: db-args ( -- {host user passwd} ) "mysql.polymicrosystems.com" "tgunr" "bat1d93k" ;
-: test.db ( -- mysql-db ) db-args <mysql-db>  "pms_test" init-with-db: ;
+: db-args ( -- {host user passwd} ) "10.1.1.3" "root" "pplutonsonew" ;
+: test.db ( -- mysql-db ) db-args <mysql-db>  "test" init-with-db: ;
 
 [ ] [
     test.db [
-        "create table person (name varchar(30), country varchar(30))" sql-command
-        "insert into person values('John', 'America')" sql-command
-        "insert into person values('Jane', 'New Zealand')" sql-command
+      "CREATE DATABASE IF NOT EXISTS test" sql-command
+      "DROP TABLE person" sql-command
+      "create table person (name varchar(30), country varchar(30))" sql-command
+      "insert into person values('John', 'America')" sql-command
+      "insert into person values('Jane', 'New Zealand')" sql-command
     ] with-db
 ] unit-test
 
