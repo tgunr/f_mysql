@@ -1,62 +1,71 @@
 ! Copyright (C) 2011 PolyMicro Systems
 ! See http://factorcode.org/license.txt for BSD license.
 
-USING: accessors combinators constructors db db.private db.queries
-db.tuples db.tuples.private db.types destructors interpolate
-io.streams.string kernel locals math math.parser mysql.ffi mysql.lib
-namespaces nmake random sequences sequences.deep slots.syntax strings
-;
+USING: accessors combinators db db.private db.queries db.tuples
+db.tuples.private db.types destructors interpolate io
+io.streams.string kernel locals math math.parser mysql.ffi namespaces
+nmake random sequences sequences.deep slots.syntax strings syslog ;
 
-IN: db.mysql
+IN: mysql
 
 TUPLE: mysql-db
     mysqlconn
-    { host string initial: "127.0.0.1" }
-    { user string initial: "root" }
-    { password string }
-    { database string initial: "test" }
-    { port integer initial: 3306 }
+    { host string }
+    { user string }
+    { passwd string }
+    { db string }
+    { port integer }
     { unixsocket string }
     { clientflag integer }
     resulthandle ;
 
-CONSTRUCTOR: mysql-db ( host user password -- mysql-db )
 
-: init-with-db ( mysql-db db -- mysql-db )
-    >>database ;
+: <mysql-db> ( host user passwd -- mysql-db )
+    { } 3sequence
+    mysql-db new
+    swap
+    set-slots{ host user passwd }
+;
+
+: init-with-db: ( mysql-db db -- mysql-db )
+    >>db ;
 
 TUPLE: mysql-db-connection < db-connection ;
-TUPLE: mysql-statement < statement ;
-TUPLE: mysql-result-set < result-set has-more? ;
-
 
 : <mysql-db-connection> ( -- db-connection )
     mysql-db-connection new-db-connection
     f mysql_init >>handle ;
 
-M: mysql-db db-open  ( db -- db-connection )
-    <mysql-db-connection> [ >>mysqlconn ] keep 
-    handle>>
-    over slots[ host user password database port unixsocket clientflag ]
+M:: mysql-db db-open ( db -- db-connection )
+    db <mysql-db-connection> >>mysqlconn
+    mysqlconn>> handle>>
+    db get[ host user passwd db port unixsocket clientflag ]
     mysql_real_connect
-    >>resulthandle
+    db swap
+        dup "db-open: " SYSLOG_VALUE
+        >>resulthandle
     mysqlconn>>
     ;
 
-M: mysql-db-connection <prepared-statement> ( str in out -- obj )
-B    mysql-statement new-statement
-    ! db-connection get handle>>
-    ! >>handle
-;
+M: mysql-db-connection db-close ( handle -- )
+    mysql_close ;
+
+TUPLE: mysql-statement < statement ;
+
+TUPLE: mysql-result-set < result-set has-more? ;
 
 M: mysql-db-connection <simple-statement> ( str in out -- obj )
-B    <prepared-statement> ;
+    mysql-statement new-statement
+    db-connection get handle>>
+    >>handle
+;
+    ! <prepared-statement> ;
 
-M: mysql-db-connection db-close ( handle -- )
-B    mysql_close ;
+! M: mysql-db-connection <prepared-statement> ( str in out -- obj )
+!     B mysql-statement new-statement ;
 
 : mysql-maybe-prepare ( statement -- statement )
-B    dup handle>> [
+    dup handle>> [
         db-connection get handle>>
         >>handle
     ] unless ;
@@ -66,12 +75,12 @@ B    dup handle>> [
 !     [ [ mysql_reset drop ] keep mysql-finalize ] when* ;
 
 M: mysql-statement dispose ( statement -- )
-B    handle>> drop ;
+    handle>> drop ;
 
     ! [ [ mysql_reset drop ] keep mysql-finalize ] when* ;
 
 M: mysql-result-set dispose ( result-set -- )
-B    f >>handle drop ;
+    f >>handle drop ;
 
 ! : reset-bindings ( statement -- )
 !     mysql-maybe-prepare
@@ -124,36 +133,37 @@ ERROR: mysql-last-id-fail ;
 ! M: mysql-db-connection insert-tuple-set-key ( tuple statement -- )
 !     execute-statement last-insert-id swap set-primary-key ;
 
-M: mysql-result-set #columns ( result-set -- n )
-B    handle>> mysql-#columns ;
+! M: mysql-result-set #columns ( result-set -- n )
+!     handle>> mysql-#columns ;
 
-M: mysql-result-set row-column ( result-set n -- obj )
-B    [ handle>> ] [ mysql-column ] bi* ;
+! M: mysql-result-set row-column ( result-set n -- obj )
+!     [ handle>> ] [ mysql-column ] bi* ;
 
 ! M: mysql-result-set row-column-typed ( result-set n -- obj )
 !     dup pick out-params>> nth type>>
 !     [ handle>> ] 2dip mysql-column-typed ;
 
 M: mysql-result-set advance-row ( result-set -- )
-B    dup handle>>
+    dup handle>>
     mysql_next_result 0 = >>has-more? drop ;
 
 M: mysql-result-set more-rows? ( result-set -- ? )
-B    has-more?>> ;
+    has-more?>> ;
 
 M:: mysql-result-set query-results ( result-set -- result-set )
-B    result-set handle>> result-set sql>>
+    result-set handle>> result-set sql>>
      mysql_query result-set swap >>n
     ;
 
 M:: mysql-statement query-results ( query -- result-set )
-B    query dup mysql-maybe-prepare
+    SYSLOG_HERE
+    query dup mysql-maybe-prepare
     handle>> mysql-result-set new-result-set
     query-results
     dup advance-row ;
 
 M: mysql-db-connection <insert-db-assigned-statement> ( class -- statement )
-B    [
+    [
         "insert into " 0% 0%
         "(" 0%
         remove-db-assigned-id
@@ -174,19 +184,19 @@ B    [
     ] query-make ;
 
 M: mysql-db-connection <insert-user-assigned-statement> ( class -- statement )
-B    <insert-db-assigned-statement> ;
+    <insert-db-assigned-statement> ;
 
 M: mysql-db-connection bind# ( spec obj -- )
-B    [
+    [
         [ column-name>> ":" next-sql-counter surround dup 0% ]
         [ type>> ] bi
     ] dip <literal-bind> 1, ;
 
 M: mysql-db-connection bind% ( spec -- )
-B    dup 1, column-name>> ":" prepend 0% ;
+    dup 1, column-name>> ":" prepend 0% ;
 
 M: mysql-db-connection persistent-table ( -- assoc )
-B    H{
+    H{
         { +db-assigned-id+ { "integer" "integer" f } }
         { +user-assigned-id+ { f f f } }
         { +random-id+ { "integer" "integer" f } }
@@ -225,7 +235,7 @@ B    H{
     } ;
 
 : insert-trigger ( -- string )
-B    [
+    [
     """
         CREATE TRIGGER fki_${table-name}_${table-id}_${foreign-table-name}_${foreign-table-id}_id
         BEFORE INSERT ON ${table-name}
@@ -237,7 +247,7 @@ B    [
     ] with-string-writer ;
 
 : insert-trigger-not-null ( -- string )
-B    [
+    [
     """
         CREATE TRIGGER fki_${table-name}_${table-id}_${foreign-table-name}_${foreign-table-id}_id
         BEFORE INSERT ON ${table-name}
@@ -250,7 +260,7 @@ B    [
     ] with-string-writer ;
 
 : update-trigger ( -- string )
-B    [
+    [
     """
         CREATE TRIGGER fku_${table-name}_${table-id}_${foreign-table-name}_${foreign-table-id}_id
         BEFORE UPDATE ON ${table-name}
@@ -262,7 +272,7 @@ B    [
     ] with-string-writer ;
 
 : update-trigger-not-null ( -- string )
-B    [
+    [
     """
         CREATE TRIGGER fku_${table-name}_${table-id}_${foreign-table-name}_${foreign-table-id}_id
         BEFORE UPDATE ON ${table-name}
@@ -275,7 +285,7 @@ B    [
     ] with-string-writer ;
 
 : delete-trigger-restrict ( -- string )
-B    [
+    [
     """
         CREATE TRIGGER fkd_${table-name}_${table-id}_${foreign-table-name}_${foreign-table-id}_id
         BEFORE DELETE ON ${foreign-table-name}
@@ -287,7 +297,7 @@ B    [
     ] with-string-writer ;
 
 : delete-trigger-cascade ( -- string )
-B    [
+    [
     """
         CREATE TRIGGER fkd_${table-name}_${table-id}_${foreign-table-name}_${foreign-table-id}_id
         BEFORE DELETE ON ${foreign-table-name}
@@ -298,16 +308,16 @@ B    [
     ] with-string-writer ;
 
 : can-be-null? ( -- ? )
-B    "sql-spec" get modifiers>> [ +not-null+ = ] any? not ;
+    "sql-spec" get modifiers>> [ +not-null+ = ] any? not ;
 
 : delete-cascade? ( -- ? )
-B    "sql-spec" get modifiers>> { +on-delete+ +cascade+ } swap subseq? ;
+    "sql-spec" get modifiers>> { +on-delete+ +cascade+ } swap subseq? ;
 
 : mysql-trigger, ( string -- )
-B    { } { } <simple-statement> 3, ;
+    { } { } <simple-statement> 3, ;
 
 : create-mysql-triggers ( -- )
-B    can-be-null? [
+    can-be-null? [
         insert-trigger mysql-trigger,
         update-trigger mysql-trigger,
     ] [ 
@@ -321,7 +331,7 @@ B    can-be-null? [
     ] if ;
 
 : create-db-triggers ( sql-specs -- )
-B    [ modifiers>> [ +foreign-id+ = ] deep-any? ] filter
+    [ modifiers>> [ +foreign-id+ = ] deep-any? ] filter
     [
         [ class>> db-table-name "db-table" set ]
         [
@@ -338,7 +348,7 @@ B    [ modifiers>> [ +foreign-id+ = ] deep-any? ] filter
     ] each ;
 
 : mysql-create-table ( sql-specs class-name -- )
-B    [
+    [
         "create table " 0% 0%
         "(" 0% [ ", " 0% ] [
             dup "sql-spec" set
@@ -359,44 +369,42 @@ B    [
     ] 2bi ;
 
 M: mysql-db-connection create-sql-statement ( class -- statement )
-B    [
+    [
         [ mysql-create-table ]
         [ drop create-db-triggers ] 2bi
     ] query-make ;
 
 M: mysql-db-connection drop-sql-statement ( class -- statements )
-B    [ nip "drop table " 0% 0% ";" 0% ] query-make ;
+    [ nip "drop table " 0% 0% ";" 0% ] query-make ;
 
 M: mysql-db-connection compound ( string seq -- new-string )
-B    over {
+    over {
         { "default" [ first number>string " " glue ] }
         { "references" [ >reference-string ] }
         [ 2drop ]
     } case ;
 
 M: mysql-db-connection parse-db-error
-B    dup n>> {
+    dup n>> {
         ! { 1 [ string>> parse-mysql-sql-error drop ] }
         { 1 [ string>> ] }
         [ drop ]
     } case ;
 
-SYMBOL: mysqlDB
-
-: db-args ( -- host user password ) "10.1.1.3" "root" "pplutonsonew" ;
-
-: testDB ( -- )   db-args <mysql-db>  "test" init-with-db mysqlDB set ;
-
+: db-args ( -- {host user passwd} ) "localhost" "davec" "ac130" ;
 : mysql-test ( -- )
-    mysqlDB get [ 
-        "create table if not exists person (name varchar(30), country varchar(30))" sql-command
-        "insert into person values('JohnnyReb', 'America')" sql-command
-        "insert into person values('JaneyReb', 'New Zealand')" sql-command
+    db-args <mysql-db>  "test" init-with-db:
+    [
+        "create table person (name varchar(30), country varchar(30))" sql-command
+        "insert into person values('John', 'America')" sql-command
+        "insert into person values('Jane', 'New Zealand')" sql-command
     ] with-db
 ;
 
-: mysql-dbs ( -- rows )
-    mysqlDB get [
-        "select * from person" sql-query
+: mysql-dbs ( -- )
+    SYSLOG_HERE
+    db-args <mysql-db>  "pms_test" init-with-db:
+    [
+        "select * from person" B sql-query print
     ] with-db
 ;

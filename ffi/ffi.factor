@@ -5,13 +5,13 @@ system ;
 
 IN: mysql.ffi
 
-"mysql" "/usr/local/lib/libmysqlclient.dylib"  cdecl add-library
+! "mysql" "/opt/local/lib/mysql5/mysql/libmysqlclient.dylib"  stdcall add-library
 
-! << "mysql" {
-!         { [ os windows? ]  [ "mysql.dll" ] }  ! ok for windows?
-!         { [ os macosx? ] [ "/usr/local/lib/libmysqlclient.dylib" ] }
-!         { [ os unix? ]  [ "libmysql.so" ] }   ! ok for unix?
-!     } cond stdcall add-library >>
+<< "mysql" {
+        { [ os windows? ]  [ "mysql.dll" ] }  ! ok for windows?
+        { [ os macosx? ] [ "/opt/local/lib/mysql5/mysql/libmysqlclient.dylib" ] }
+        { [ os unix? ]  [ "libmysql.so" ] }   ! ok for unix?
+    } cond cdecl add-library >>
 
 ! Return values from mysql functions
 CONSTANT: MYSQL_OK           0 ! Successful result
@@ -174,7 +174,7 @@ FUNCTION: c-string mysql_get_ssl_cipher ( MYSQL* mysql ) ;
 FUNCTION: bool mysql_change_user ( MYSQL* mysql c-string user c-string passwd c-string db ) ;
 FUNCTION: MYSQL* mysql_real_connect ( MYSQL* mysql c-string host c-string user c-string passwd c-string db uint port c-string unix_socket ulong clientflag ) ;
 FUNCTION: int mysql_select_db ( MYSQL* mysql c-string db ) ;
-FUNCTION: int mysql_query ( MYSQL* mysql , c-string q ) ;
+FUNCTION: int mysql_query ( MYSQL* mysql c-string q ) ;
 FUNCTION: int mysql_send_query ( MYSQL* mysql c-string q ulong length ) ;
 FUNCTION: int mysql_real_query ( MYSQL* mysql c-string q ulong length ) ;
 FUNCTION: MYSQL_RES* mysql_store_result ( MYSQL* mysql ) ;
