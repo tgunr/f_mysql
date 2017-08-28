@@ -1,16 +1,57 @@
 ! Copyright (C) 2012 PolyMicro Systems.
 ! See http://factorcode.org/license.txt for BSD license.
 
-USING: accessors alien.c-types alien.data arrays calendar.format
-combinators db db.errors db.types io.backend io.encodings.string
-io.encodings.utf8 kernel math mysql mysql.ffi namespaces present
-sequences serialize urls ;
+<<<<<<< HEAD
+USING: accessors alien.c-types alien.data combinators db
+db.errors db.mysql.ffi io.backend kernel mysql.ffi namespaces
+sequences ;
 
 IN: mysql.lib
+
+DEFER: MYSQL_ERROR
+=======
+USING: accessors alien.c-types alien.data combinators db db.errors
+io.backend kernel db.mysql.ffi namespaces sequences ;
+
+IN: db.mysql.lib
+>>>>>>> local
 
 ERROR: mysql-error < db-error n string ;
 ERROR: mysql-sql-error < sql-error n string ;
 
+<<<<<<< HEAD
+: mysql-error-messages ( -- seq ) {
+    "Successful result"
+    "SQL error or missing database"
+    "An internal logic error in Mysql"
+    "Access permission denied"
+    "Callback routine requested an abort"
+    "The database file is locked"
+    "A table in the database is locked"
+    "A malloc() failed"
+    "Attempt to write a readonly database"
+    "Operation terminated by mysql_interrupt()"
+    "Some kind of disk I/O error occurred"
+    "The database disk image is malformed"
+    "(Internal Only) Table or record not found"
+    "Insertion failed because database is full"
+    "Unable to open the database file"
+    "Database lock protocol error"
+    "(Internal Only) Database table is empty"
+    "The database schema changed"
+    "Too much data for one row of a table"
+    "Abort due to contraint violation"
+    "Data type mismatch"
+    "Library used incorrectly"
+    "Uses OS features not supported on host"
+    "Authorization denied"
+    "Auxiliary database format error"
+    "2nd parameter to mysql_bind out of range"
+    "File opened that is not a database file"
+} ;
+
+=======
+>>>>>>> local
 : throw-mysql-error ( n -- * )
     dup mysql-error-messages nth mysql-error ;
 
@@ -37,7 +78,7 @@ ERROR: mysql-sql-error < sql-error n string ;
 !     utf8 encode dup length
 !     { void* void* }
 !     [ mysql_stmt_prepare mysql-check-result ]
-!     with-out-parameters drop ;
+!     with-out-parameters drop drop ;
 
 : mysql-bind-parameter-index ( handle name -- index )
     mysql_stmt_bind_param ;
@@ -71,14 +112,14 @@ ERROR: mysql-sql-error < sql-error n string ;
 ! : mysql-bind-text-by-name ( handle name text -- )
 !     parameter-index mysql-bind-text ;
 
-: mysql-bind-int-by-name ( handle name int -- )
-    parameter-index mysql-bind-int;
+! : mysql-bind-int-by-name ( handle name int -- )
+!     parameter-index mysql-bind-int;
 
 ! : mysql-bind-int64-by-name ( handle name int64 -- )
 !     parameter-index mysql-bind-int64 ;
 
-! ! : mysql-bind-uint64-by-name ( handle name int64 -- )
-! !     parameter-index mysql-bind-uint64 ;
+! : mysql-bind-uint64-by-name ( handle name int64 -- )
+!     parameter-index mysql-bind-uint64 ;
 
 ! : mysql-bind-boolean-by-name ( handle name obj -- )
 !     >boolean 1 0 ? parameter-index mysql-bind-int ;
@@ -92,44 +133,44 @@ ERROR: mysql-sql-error < sql-error n string ;
 ! : mysql-bind-null-by-name ( handle name obj -- )
 !     parameter-index drop mysql-bind-null ;
 
-: (mysql-bind-type) ( handle key value type -- )
-    dup array? [ first ] when
-    {
-        { INTEGER [ mysql-bind-int-by-name ] }
-        { BIG-INTEGER [ mysql-bind-int64-by-name ] }
-        { SIGNED-BIG-INTEGER [ mysql-bind-int64-by-name ] }
-        ! { UNSIGNED-BIG-INTEGER [ mysql-bind-uint64-by-name ] }
-        { BOOLEAN [ mysql-bind-boolean-by-name ] }
-        { TEXT [ mysql-bind-text-by-name ] }
-        { VARCHAR [ mysql-bind-text-by-name ] }
-        { DOUBLE [ mysql-bind-double-by-name ] }
-        { DATE [ timestamp>ymd mysql-bind-text-by-name ] }
-        { TIME [ timestamp>hms mysql-bind-text-by-name ] }
-        { DATETIME [ timestamp>ymdhms mysql-bind-text-by-name ] }
-        { TIMESTAMP [ timestamp>ymdhms mysql-bind-text-by-name ] }
-        { BLOB [ mysql-bind-blob-by-name ] }
-        { FACTOR-BLOB [ object>bytes mysql-bind-blob-by-name ] }
-        { URL [ present mysql-bind-text-by-name ] }
-        { +db-assigned-id+ [ mysql-bind-int-by-name ] }
-        { +random-id+ [ mysql-bind-int64-by-name ] }
-        { NULL [ mysql-bind-null-by-name ] }
-        [ no-sql-type ]
-    } case;
+! : (mysql-bind-type) ( handle key value type -- )
+!     dup array? [ first ] when
+!     {
+!         { INTEGER [ mysql-bind-int-by-name ] }
+!         { BIG-INTEGER [ mysql-bind-int64-by-name ] }
+!         { SIGNED-BIG-INTEGER [ mysql-bind-int64-by-name ] }
+!         { UNSIGNED-BIG-INTEGER [ mysql-bind-uint64-by-name ] }
+!         { BOOLEAN [ mysql-bind-boolean-by-name ] }
+!         { TEXT [ mysql-bind-text-by-name ] }
+!         { VARCHAR [ mysql-bind-text-by-name ] }
+!         { DOUBLE [ mysql-bind-double-by-name ] }
+!         { DATE [ timestamp>ymd mysql-bind-text-by-name ] }
+!         { TIME [ timestamp>hms mysql-bind-text-by-name ] }
+!         { DATETIME [ timestamp>ymdhms mysql-bind-text-by-name ] }
+!         { TIMESTAMP [ timestamp>ymdhms mysql-bind-text-by-name ] }
+!         { BLOB [ mysql-bind-blob-by-name ] }
+!         { FACTOR-BLOB [ object>bytes mysql-bind-blob-by-name ] }
+!         { URL [ present mysql-bind-text-by-name ] }
+!         { +db-assigned-id+ [ mysql-bind-int-by-name ] }
+!         { +random-id+ [ mysql-bind-int64-by-name ] }
+!         { NULL [ mysql-bind-null-by-name ] }
+!         [ no-sql-type ]
+!     } case;
 
-: mysql-bind-type ( handle key value type -- )
-    #! null and empty values need to be set by mysql-bind-null-by-name
-    over [
-        NULL = [ 2drop NULL NULL ] when
-    ] [
-        drop NULL 
-    ] if* (mysql-bind-type);
+! : mysql-bind-type ( handle key value type -- )
+!     #! null and empty values need to be set by mysql-bind-null-by-name
+!     over [
+!         NULL = [ 2drop NULL NULL ] when
+!     ] [
+!         drop NULL 
+!     ] if* (mysql-bind-type);
 
 ! : mysql-finalize ( handle -- ) mysql_finalize mysql-check-result ;
 ! : mysql-reset ( handle -- ) mysql_reset mysql-check-result ;
 ! : mysql-clear-bindings ( handle -- )
 !     mysql_clear_bindings mysql-check-result ;
-! : mysql-#columns ( query -- int ) mysql_column_count ;
-! : mysql-column ( handle index -- string ) mysql_column_text ;
+: mysql-#columns ( query -- int ) mysql_stmt_field_count ;
+: mysql-column ( handle index -- string )  mysql_field_seek mysql_fetch_field ;
 ! : mysql-column-name ( handle index -- string ) mysql_column_name ;
 ! : mysql-column-type ( handle index -- string ) mysql_column_type ;
 
