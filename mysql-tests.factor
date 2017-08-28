@@ -124,11 +124,11 @@ hi "HELLO" {
 ! Test Mysql triggers
 
 TUPLE: show id ;
-TUPLE: user username data ;
+TUPLE: user user data ;
 TUPLE: watch show user ;
 
 user "USER" {
-    { "username" "USERNAME" TEXT +not-null+ +user-assigned-id+ }
+    { "user" "USER" TEXT +not-null+ +user-assigned-id+ }
     { "data" "DATA" TEXT }
 } define-persistent
 
@@ -138,12 +138,12 @@ show "SHOW" {
 
 watch "WATCH" {
     { "user" "USER" TEXT +not-null+ +user-assigned-id+
-        { +foreign-id+ user "USERNAME" } }
+        { +foreign-id+ user "USER" } }
     { "show" "SHOW" BIG-INTEGER +not-null+ +user-assigned-id+
         { +foreign-id+ show "ID" } }
 } define-persistent
     
-[ T{ user { username "littledan" } { data "foo" } } ] [
+[ T{ user { user "littledan" } { data "foo" } } ] [
     test.db [
         user create-table
         show create-table
@@ -153,7 +153,7 @@ watch "WATCH" {
         show new insert-tuple
         show new select-tuple
         "littledan" f user boa select-tuple
-        [ id>> ] [ username>> ] bi*
+        [ id>> ] [ user>> ] bi*
         watch boa insert-tuple
         watch new select-tuple
         user>> f user boa select-tuple

@@ -1,8 +1,7 @@
 ! Copyright (C) 2011 PolyMicro Systems
 ! See http://factorcode.org/license.txt for BSD license.
 
-USING: accessors combinators db db.private db.queries db.tuples
-db.tuples.private db.types destructors interpolate io
+USING: accessors combinators destructors interpolate io
 io.streams.string kernel locals math math.parser mysql.ffi namespaces
 nmake random sequences sequences.deep slots.syntax strings syslog ;
 
